@@ -126,4 +126,4 @@ def main(somepath="./pytorch-data"):
 
 if __name__ == "__main__":
     main()
-    print("Ok. Checkpoint on loading data reached.")
+    print("Ok. Checkpoint on model creation reached.")
