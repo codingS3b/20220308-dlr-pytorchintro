@@ -1,21 +1,21 @@
-## https://notes.desy.de/s/ljPrespZd#Infrastructure--Cluster-login
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
 ## for the code to work, install torchvision
 ## $ python -m pip install --user -I --no-deps torchvision
 import torchvision
 from torchvision import datasets, transforms
-
-## NB: in case torchvision cannot be found inside a jupyter notebook, fix the PYTHONPATH through
-##     import sys
-##     sys.path.append("/home/haicore-project-ws-hip-2021/mk7540/.local/lib/python3.8/site-packages/")
+from pathlib import Path
+from tensorboardX import SummaryWriter
 
 
 def load_data(
     somepath,
     norm_loc=(0.1307,),  ## mu of normal dist to normalize by
     norm_scale=(0.3081,),  ## sigma of normal dist to normalize by
-    train_kwargs={"batch_size": 64, "shuffle": True},
-    test_kwargs={"batch_size": 1_000},
+    train_kwargs={"batch_size": 64},
+    test_kwargs={"batch_size": 1000},
     use_cuda=torch.cuda.device_count() > 0,
 ):
     """load MNIST data and return train/test loader object"""
@@ -34,16 +34,12 @@ def load_data(
 
     if use_cuda:
         train_kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
-        test_kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
+        test_kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": False})
 
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     return train_loader, test_loader
-
-
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 class MyNetwork(nn.Module):
@@ -82,13 +78,6 @@ class MyNetwork(nn.Module):
         return output
 
 
-from pathlib import Path
-
-import torch.optim as optim
-# from torch.utils.tensorboard import SummaryWriter
-from tensorboardX import SummaryWriter
-
-
 def main(somepath="./pytorch-data"):
     """load the data set and run a random init CNN on it"""
 
@@ -98,13 +87,14 @@ def main(somepath="./pytorch-data"):
     use_cuda = cuda_present and ndevices > 0
     device = torch.device("cuda" if use_cuda else "cpu")  # "cuda:0" ... default device
     # "cuda:1" would be GPU index 1, "cuda:2" etc
+    print("chosen device:", device, "use_cuda=", use_cuda)
 
     train_loader, test_loader = load_data(somepath, use_cuda=use_cuda)
     model = MyNetwork().to(device)
 
-    optimizer = optim.Adadelta(model.parameters(), lr=1.0)
+    optimizer = optim.Adadelta(model.parameters(), lr=1.e-3)
     max_nepochs = 1
-    log_interval = 5
+    log_interval = 100
 
     init_params = list(model.parameters())[0].clone().detach()
     writer = SummaryWriter(log_dir="logs", comment="this is the test of SummaryWriter")
@@ -121,7 +111,6 @@ def main(somepath="./pytorch-data"):
             X, y = X.to(device), y.to(device)
             # download from GPU to CPU: X_cpu = X.cpu()
             # download from GPU to CPU: X_cpu = X.to(torch.device("cpu"))
-            # download from GPU to CPU: X_cpu = X.detach().numpy()
             optimizer.zero_grad()
 
             prediction = model(X)
@@ -136,8 +125,11 @@ def main(somepath="./pytorch-data"):
                 print(
                     "Train Epoch:",
                     epoch,
-                    batch_idx * len(X),
-                    len(train_loader.dataset),
+                    "Batch:",
+                    batch_idx,
+                    "Total samples processed",
+                    (batch_idx + 1) * train_loader.batch_size,
+                    "Loss:",
                     loss.item(),
                 )
             if batch_idx % 10 == 0:
@@ -159,13 +151,15 @@ def main(somepath="./pytorch-data"):
     final_params = list(model.parameters())[0].clone().detach()
     assert not torch.allclose(init_params, final_params)
 
-    # when to reload chkp
-    # payload = torch.load(cpath)
-    # model = MyNetwork()
-    # model.load_state_dict(payload['model_state_dict'])
+    # when to reload chkp, e.g. for doing inference
+    payload = torch.load(cpath)
+    model_from_ckpt = MyNetwork()
+    model_from_ckpt.load_state_dict(payload['model_state_dict'])
     # continue learning/training after this
+    loaded_params = list(model_from_ckpt.parameters())[0]
+    assert torch.allclose(loaded_params, final_params)
 
 
 if __name__ == "__main__":
     main()
-    print("Ok. Checkpoint on loading data reached.")
+    print("Ok. Checkpoint on training with checkpoints reached.")

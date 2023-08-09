@@ -40,7 +40,11 @@ def main(somepath="./pytorch-data"):
         shuffle=True
         # **cuda_kwargs
     )
-    test_loader = torch.utils.data.DataLoader(test_dataset, batch_size=1024)
+    test_loader = torch.utils.data.DataLoader(
+        test_dataset,
+        batch_size=1024,
+        shuffle=False
+    )
 
     print("our data sets for MNIST")
     print(train_dataset)

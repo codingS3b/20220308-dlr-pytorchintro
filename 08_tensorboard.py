@@ -1,27 +1,25 @@
-## https://notes.desy.de/s/ljPrespZd#Infrastructure--Cluster-login
 import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import torch.optim as optim
+from tensorboardX import SummaryWriter
 ## for the code to work, install torchvision
 ## $ python -m pip install --user -I --no-deps torchvision
 import torchvision
 from torchvision import datasets, transforms
-
-## NB: in case torchvision cannot be found inside a jupyter notebook, fix the PYTHONPATH through
-##     import sys
-##     sys.path.append("/home/haicore-project-ws-hip-2021/mk7540/.local/lib/python3.8/site-packages/")
 
 
 def load_data(
     somepath,
     norm_loc=(0.1307,),  ## mu of normal dist to normalize by
     norm_scale=(0.3081,),  ## sigma of normal dist to normalize by
-    train_kwargs={"batch_size": 64, "shuffle": True},
-    test_kwargs={"batch_size": 1_000},
+    train_kwargs={"batch_size": 64},
+    test_kwargs={"batch_size": 1000},
     use_cuda=torch.cuda.device_count() > 0,
 ):
     """load MNIST data and return train/test loader object"""
 
     transform_ = transforms.Compose(
-        # TODO where do the magic numbers come from?
         [transforms.ToTensor(), transforms.Normalize(norm_loc, norm_scale)]
     )
 
@@ -34,16 +32,12 @@ def load_data(
 
     if use_cuda:
         train_kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
-        test_kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": True})
+        test_kwargs.update({"num_workers": 1, "pin_memory": True, "shuffle": False})
 
     train_loader = torch.utils.data.DataLoader(train_dataset, **train_kwargs)
     test_loader = torch.utils.data.DataLoader(test_dataset, **test_kwargs)
 
     return train_loader, test_loader
-
-
-import torch.nn as nn
-import torch.nn.functional as F
 
 
 class MyNetwork(nn.Module):
@@ -82,11 +76,6 @@ class MyNetwork(nn.Module):
         return output
 
 
-import torch.optim as optim
-# from torch.utils.tensorboard import SummaryWriter
-from tensorboardX import SummaryWriter
-
-
 def main(somepath="./pytorch-data"):
     """load the data set and run a random init CNN on it"""
 
@@ -96,13 +85,14 @@ def main(somepath="./pytorch-data"):
     use_cuda = cuda_present and ndevices > 0
     device = torch.device("cuda" if use_cuda else "cpu")  # "cuda:0" ... default device
     # "cuda:1" would be GPU index 1, "cuda:2" etc
+    print("chosen device:", device, "use_cuda=", use_cuda)
 
     train_loader, test_loader = load_data(somepath, use_cuda=use_cuda)
     model = MyNetwork().to(device)
 
-    optimizer = optim.Adadelta(model.parameters(), lr=1.0)
+    optimizer = optim.Adadelta(model.parameters(), lr=1.e-3)
     max_nepochs = 1
-    log_interval = 5
+    log_interval = 100
 
     init_params = list(model.parameters())[0].clone().detach()
     writer = SummaryWriter(log_dir="logs", comment="this is the test of SummaryWriter")
@@ -130,10 +120,14 @@ def main(somepath="./pytorch-data"):
                 print(
                     "Train Epoch:",
                     epoch,
-                    batch_idx * len(X),
-                    len(train_loader.dataset),
+                    "Batch:",
+                    batch_idx,
+                    "Total samples processed",
+                    (batch_idx + 1) * train_loader.batch_size,
+                    "Loss:",
                     loss.item(),
                 )
+
             if batch_idx % 10 == 0:
                 writer.add_scalar("Loss/train/batch10", loss.item(), batch_idx)
 
@@ -143,4 +137,11 @@ def main(somepath="./pytorch-data"):
 
 if __name__ == "__main__":
     main()
-    print("Ok. Checkpoint on loading data reached.")
+    print("Ok. Checkpoint on training with tensorboard reached.")
+
+    # NOTE: during or after training the tensorboard logs can
+    # be visualized as follows: in a terminal, type
+
+    # tensorboard --logdir "path/to/logs",
+
+    # then open a browser on localhost:6006 (or whichever port the tensorboard server outputted as running on)

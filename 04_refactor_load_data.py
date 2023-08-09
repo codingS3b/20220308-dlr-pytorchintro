@@ -9,7 +9,7 @@ def load_data(
     somepath,
     norm_loc=(0.1307,),  ## mu of normal dist to normalize by
     norm_scale=(0.3081,),  ## sigma of normal dist to normalize by
-    train_kwargs={"batch_size": 64, "shuffle": True},
+    train_kwargs={"batch_size": 64},
     test_kwargs={"batch_size": 1000},
     use_cuda=torch.cuda.device_count() > 0,
 ):
