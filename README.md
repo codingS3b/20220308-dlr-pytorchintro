@@ -1,9 +1,8 @@
 # Introduction to Pytorch
 
-Workshop given on Mar 8, 2022, to DLR. 
+Workshop given on Aug 29, 2023 at the PoLBIAS Training school.
 
-Event page: https://events.hifis.net/event/319
-Event pad:  https://notes.desy.de/gu4OL2JNQpOOzMnHYkuhtQ?edit
+Event page: https://biapol.eventmember.de/
 
 # Questions, concerns or feedback?
 

@@ -51,25 +51,41 @@ class MyNetwork(nn.Module):
 
     def __init__(self):
         super(MyNetwork, self).__init__()
-        self.conv1 = nn.Conv2d(1, 32, 3, 1)
-        self.conv2 = nn.Conv2d(32, 64, 3)
+        self.conv1 = nn.Conv2d(
+            in_channels=1,
+            out_channels=32,
+            kernel_size=3,
+            stride=1)
+        self.conv2 = nn.Conv2d(
+            in_channels=32,
+            out_channels=64,
+            kernel_size=3,
+            stride=1)
 
         self.dropout1 = nn.Dropout(0.25)
         self.dropout2 = nn.Dropout(0.5)
 
+        # NOTE: 9216 comes from flattening the feature maps that are the
+        # result from maxpooling the last conv layers output: 64 x 12 x 12
+        # 64 * 12 * 12 = 9216
         self.fc1 = nn.Linear(9216, 128)
         self.fc2 = nn.Linear(128, 10)
 
     def forward(self, x):
         x = self.conv1(x)
         x = F.relu(x)
+        print("Shape after conv1", x.shape)
 
         x = self.conv2(x)
         x = F.relu(x)
+        print("Shape after conv2", x.shape)
 
         x = F.max_pool2d(x, 2)
+        print("Shape after max pool", x.shape)
         x = self.dropout1(x)
+
         x = torch.flatten(x, 1)
+        print("Shape after flattening", x.shape)
 
         x = self.fc1(x)
         x = F.relu(x)
