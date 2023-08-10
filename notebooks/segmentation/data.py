@@ -1,9 +1,13 @@
 """Note: The dataset and preprocessing code are largely taken from the StarDist github repository available at https://github.com/stardist"""
 
 import numpy as np
+import torch
 
 from pathlib import Path
 from scipy.ndimage import binary_fill_holes
+from tifffile import imread
+from torchvision import transforms
+from tqdm import tqdm
 
 
 def get_dsb2018_files(subset):
@@ -63,3 +67,63 @@ def quantile_normalization(img, quantile_low=0.01, quantile_high=0.998, eps=1.e-
 
     scaled = normalize(img, low=qlow, high=qhigh, eps=eps, clip=clip)
     return scaled, qlow, qhigh
+
+
+class DSBData():
+    def __init__(self, image_files, label_files, target_shape=(256, 256)):
+        """
+        Parameters
+        ----------
+        image_files: list of pathlib.Path objects pointing to the *.tif images
+        label_files: list of pathlib.Path objects pointing to the *.tif segmentation masks
+        target_shape: tuple of length 2 specifying the sample resolutions of files that
+                      will be kept. All other files will NOT be used.
+        """
+        assert len(image_files) == len(label_files)
+        assert all(x.name==y.name for x,y in zip(image_files, label_files))
+
+        self.images = []
+        self.labels = []
+
+        tensor_transform = transforms.Compose([
+            transforms.ToTensor(),
+        ])
+        for idx in tqdm(range(len(image_files))):
+            # we use the same data reading approach as in the previous notebook
+            image = imread(image_files[idx])
+            label = imread(label_files[idx])
+
+            if image.shape != target_shape:
+                continue
+
+            # do the normalizations
+            image = quantile_normalization(
+                image,
+                quantile_low=0.01,
+                quantile_high=0.998,
+                clip=True)[0].astype(np.float32)
+
+            # NOTE: we convert the label to dtype float32 and not uint8 because
+            # the tensor transformation does a normalization if the input is of
+            # dtype uint8, destroying the 0/1 labelling which we want to avoid.
+            label = fill_label_holes(label)
+            label_binary = np.zeros_like(label).astype(np.float32)
+            label_binary[label != 0] = 1.
+
+            # convert to torch tensor: adds an artificial color channel in the front
+            # and scales inputs to have same size as samples tend to differ in image
+            # resolutions
+            image = tensor_transform(image)
+            label = tensor_transform(label_binary)
+
+            self.images.append(image)
+            self.labels.append(label)
+
+        self.images = torch.stack(self.images)
+        self.labels = torch.stack(self.labels)
+
+    def __getitem__(self, idx):
+        return self.images[idx], self.labels[idx]
+
+    def __len__(self):
+        return len(self.images)
