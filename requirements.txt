@@ -1,7 +1,8 @@
+jupyter
+matplotlib
+monai
+pytorch_lightning
+tensorboard
+tensorboardX
 torch
 torchvision
-pytorch_lightning
-tensorboardX
-tensorboard
-matplotlib
-jupyter
