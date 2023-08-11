@@ -21,6 +21,8 @@ Afterwards, once the notebook has opened:
 - execute the first cell, with SHIFT+ENTER
 - this will link the conda environment we prepared for you to your user folder. Follow any instructions in the notebook.
 
+The data required to execute the notebooks is located at `/projects/p_scads_trainings/BIAS/dsb2018` and has to be integrated into your clone of this repository (which should reside in your home directory after clicking the above link to launch jupyter Hub).
+- Create a directory named `data` in the top level of the repo (i.e. on the same level the `scripts` and `notebooks` directory are located). Then copy the data to the freshly created directory using `cp -r /projects/p_scads_trainings/BIAS/dsb2018 $HOME/pytorch_intro/data/`
 
 
 # Questions, concerns or feedback?
